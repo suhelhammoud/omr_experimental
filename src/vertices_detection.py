@@ -3,6 +3,10 @@ import numpy as np
 import logging
 
 from matplotlib import pyplot as plt
+import matplotlib
+
+# matplotlib.use('TKAgg')
+
 from numpy.linalg import norm
 
 from OmrExceptions import *
@@ -47,10 +51,10 @@ def get_side(image, axis=1):
 def get_vertex(image, axis, debug=False):
     side, side_nz, nz = get_side(image, axis)
     height, width = image.shape
-    a = np.array([nz[0], image.shape[1 - axis]])  # image.shape[1 - axis]
-    # a = np.array([nz[0], side_nz[0]])  # image.shape[1 - axis]
-    b = np.array([nz[-1], side_nz[-1]])  # [image.shape[axis]
-    point = get_max_distant_point(nz, side_nz, a, b)
+    point_a = np.array([nz[0], image.shape[1 - axis]])  # image.shape[1 - axis]
+    point_b = np.array([nz[-1], side_nz[-1]])  # [image.shape[axis]
+
+    point = get_max_distant_point(nz, side_nz, point_a, point_b)
     result = (point[axis], point[1 - axis])
     if debug:
         plt.subplot(141), plt.imshow(image, 'gray'), plt.title(f'quarter axis={axis}')
@@ -64,7 +68,8 @@ def get_vertex(image, axis, debug=False):
 def tp(arr):
     return arr[0], arr[1]
 
-def get_vertex_crossing(image, axis, debug=True):
+
+def get_vertex_crossing(image, axis, debug=False):
     side, side_nz, nz = get_side(image, axis)
     height, width = image.shape
     a = np.array([nz[0], image.shape[axis]])
@@ -72,11 +77,11 @@ def get_vertex_crossing(image, axis, debug=True):
     b = np.array([nz[-1], side_nz[-1]])
     point = get_max_distant_point(nz, side_nz, a, b)
     result = (point[axis], point[1 - axis])
-    if debug or True:
+    if debug:
         image = image.copy()
         print(f'a = {a}, b = {b}')
-        cv2.circle(image, tp(a), 30, (255,0, 255), 15)
-        cv2.circle(image, tp(b), 30, (255,0, 255), 15)
+        cv2.circle(image, tp(a), 30, (255, 0, 255), 15)
+        cv2.circle(image, tp(b), 30, (255, 0, 255), 15)
         plt.subplot(141), plt.imshow(image, 'gray'), plt.title(f'qtr axis={axis}')
         plt.subplot(142), plt.plot(side), plt.title(f'side')
         plt.subplot(143), plt.plot(side_nz), plt.title(f'side_nz')
@@ -162,9 +167,9 @@ def vertices(image, debug=False):
     # h, w = int(height / 2), int(width / 2)
     # im_list = normalize_quarters(crop_to_four(image, h, w))
     im_list = normalize_quarters(crop_to_four(image))
-    vrtcs = [vertex(im, True) for im in im_list]
+    vrtcs = [vertex(im, debug) for im in im_list]
     print(vrtcs)
-    if debug or True:
+    if debug:
         for idx, img in enumerate(im_list):
             img = img.copy()
             cv2.circle(img, vrtcs[idx], 50, (255, 255, 255), 5)
@@ -206,73 +211,28 @@ def crop_margin(image, y_margin, x_margin=None):
     return image[y_margin:-y_margin, x_margin: -x_margin]
 
 
-def test():
-    file_path = '../../data/in2/12.jpg'
-    img = cv2.imread(file_path, 0)
-    plt.imshow(img, 'gray')
-    plt.show()
-    img_otsu = otsu_filter(img, blur_kernel=17)
-    vtcs = vertices(img_otsu, debug=True)
-    print(vtcs)
-    image_vis = transform(img, vtcs, (1020, 1520), show=True)
+def border_filter(img):
+    return otsu_filter(img, blur_kernel=17)
+
+
+def get_sheet(img, debug=False):
+    img_otsu = border_filter(img)
+    vtcs = vertices(img_otsu, debug)
+    image_vis = transform(img, vtcs, (1020, 1520), show=False)
     image_vis = crop_margin(image_vis, 10)
-    # cv2.imwrite(f"../../data/out.uok/{file_path[-6:]}", image_vis)
-
-    # plt.subplot(121), plt.imshow(img, 'gray'), plt.title('img')
-    # plt.subplot(122), plt.imshow(img_otsu, 'gray'), plt.title('img_otsu')
-    # plt.show()
-
-    # im1, im2, im3, im4 = crop_to_four(img_otsu)
-    im1, im2, im3, im4 = normalize_quarters(crop_to_four(img_otsu))
-
-    # plt.subplot(221), plt.imshow(im1, 'gray'), plt.title('im1')
-    # plt.subplot(222), plt.imshow(im2, 'gray'), plt.title('im2')
-    # plt.subplot(223), plt.imshow(im3, 'gray'), plt.title('im3')
-    # plt.subplot(224), plt.imshow(im4, 'gray'), plt.title('im4')
-    # plt.show()
-
-
-def old_expreiments():
-    file_path = '../../data/in2/05.jpg'
-    img = cv2.imread(file_path, 0)
-    img_otsu = otsu_filter(img, blur_kernel=17)
-    im = im1.copy()
-    print(im.shape)
-    ls, lsnz, lnz = get_side(im, axis=1)
-    print(f"v test = {check_side(lnz)}, len = {len(lnz)}")
-
-    print(f"ls zero = {ls[0]}, lsnz = {lsnz[0]}, lnz = {lnz[0]}")
-    print(f"ls = {len(ls)}, lsnz ={len(lsnz)}, lnz={len(lnz)}")
-    l_distance = get_max_distant_point(lnz, lsnz)
-    print(f"l get_vertex = {get_vertex(im, axis=1)}")
-    print(f"l_distance = {l_distance}")
-    us, usnz, unz = get_side(im, axis=0)
-    print(f"h test = {check_side(unz)}, len = {len(unz)}")
-
-    u_distance = get_max_distant_point(unz, usnz)
-    print(f"u_distance = {u_distance}")
-    print(f"u get_vertex = {get_vertex(im, axis=0)}")
-
-    cv2.circle(im, (l_distance[1], l_distance[0]), 50, (255, 255, 255), 3)
-    cv2.circle(im, (u_distance[0], u_distance[1]), 70, (255, 255, 255), 4)
-
-    plt.subplot(241), plt.imshow(im, 'gray'), plt.title('im1')
-    plt.subplot(242), plt.plot(ls, 'b'), plt.title('v side')
-    plt.subplot(243), plt.plot(lsnz, 'b'), plt.title('nz v side')
-    plt.subplot(244), plt.plot(lnz, lsnz, 'b'), plt.title('lnz v side')
-
-    plt.subplot(245), plt.imshow(im, 'gray'), plt.title('im1')
-    plt.subplot(246), plt.plot(us, 'r'), plt.title('h side')
-    plt.subplot(247), plt.plot(usnz, 'r'), plt.title('nz h side')
-    plt.subplot(248), plt.plot(unz, usnz, 'r'), plt.title('xy')
-
-    cv2.circle(im1, (u_distance[1], u_distance[0]), 50, (255, 255, 255), 3)
+    plt.imshow(image_vis, 'gray')
     plt.show()
-    # print(f"h1 = {im1.shape[0]},"
-    #       f"h3 = {im3.shape[0]}, "
-    #       f"h1 + h3 = {im1.shape[0] + im3.shape[0]} "
-    #       f"img.h = {img.shape[0]} ")
+    return image_vis
+
+
+
+def test():
+    file_path = '../data/in/12.jpg'
+    img = cv2.imread(file_path, 0)
+    get_sheet(img, False)
+
 
 
 if __name__ == '__main__':
-    test()
+    import timeit
+    print(timeit.timeit(test, number=1))
